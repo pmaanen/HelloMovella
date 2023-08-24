@@ -1,0 +1,33 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        // Add local libs repo
+        // If do not add this, when use our SDK, it will show ERROR: Failed to resolve: :XsensDotSdk:
+        flatDir {
+            dirs "libs"
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // Add local libs repo
+        // If do not add this, when use our SDK, it will show ERROR: Failed to resolve: :XsensDotSdk:
+        flatDir {
+            dirs "libs"
+        }
+    }
+}
+
+
+rootProject.name = "HelloMovella"
+include ':app'
+
+// Add a project stub for liblsl-Java
+include 'liblsl-Java'
+project(':liblsl-Java').projectDir = new File('./liblsl-Java')
