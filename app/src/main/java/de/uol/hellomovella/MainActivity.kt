@@ -12,14 +12,14 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import com.xsens.dot.android.sdk.XsensDotSdk
-import com.xsens.dot.android.sdk.events.XsensDotData
-import com.xsens.dot.android.sdk.interfaces.XsensDotDeviceCallback
-import com.xsens.dot.android.sdk.interfaces.XsensDotScannerCallback
+import com.xsens.dot.android.sdk.DotSdk
+import com.xsens.dot.android.sdk.events.DotData
+import com.xsens.dot.android.sdk.interfaces.DotDeviceCallback
+import com.xsens.dot.android.sdk.interfaces.DotScannerCallback
 import com.xsens.dot.android.sdk.models.FilterProfileInfo
-import com.xsens.dot.android.sdk.models.XsensDotDevice
-import com.xsens.dot.android.sdk.models.XsensDotPayload
-import com.xsens.dot.android.sdk.utils.XsensDotScanner
+import com.xsens.dot.android.sdk.models.DotDevice
+import com.xsens.dot.android.sdk.models.DotPayload
+import com.xsens.dot.android.sdk.utils.DotScanner
 import de.uol.hellomovella.utils.Utils.isBluetoothAdapterEnabled
 import de.uol.hellomovella.utils.Utils.isLocationPermissionGranted
 import de.uol.hellomovella.utils.Utils.requestEnableBluetooth
@@ -29,11 +29,11 @@ import edu.ucsd.sccn.LSL.StreamOutlet
 import java.util.UUID
 import kotlin.collections.ArrayList
 
-class MainActivity : AppCompatActivity(), XsensDotDeviceCallback, XsensDotScannerCallback {
+class MainActivity : AppCompatActivity(), DotDeviceCallback, DotScannerCallback {
     var isScanning: Boolean = false
-    var mXsScanner: XsensDotScanner = XsensDotScanner(null, null);
-    var mDeviceList: ArrayList<XsensDotDevice> = ArrayList<XsensDotDevice>()
-    var mActiveDeviceList: ArrayList<XsensDotDevice> = ArrayList<XsensDotDevice>()
+    var mXsScanner: DotScanner = DotScanner(null, null);
+    var mDeviceList: ArrayList<DotDevice> = ArrayList<DotDevice>()
+    var mActiveDeviceList: ArrayList<DotDevice> = ArrayList<DotDevice>()
     var mSensorOutlet: StreamOutlet? = null
 
     //var mLSLOutlets: ArrayList
@@ -45,15 +45,15 @@ class MainActivity : AppCompatActivity(), XsensDotDeviceCallback, XsensDotScanne
         setContentView(R.layout.activity_main)
 
         btnScan = findViewById<Button>(R.id.btnScan)
-        tvResultsList = findViewById<TextView>(R.id.textView)
+        tvResultsList = findViewById<TextView>(R.id.DataTextView)
 
-        mXsScanner = XsensDotScanner(applicationContext, this)
+        mXsScanner = DotScanner(applicationContext, this)
 
-        //XsensDotScanner(this@MainActivity, this);
+        //DotScanner(this@MainActivity, this);
         mXsScanner.setScanMode(ScanSettings.SCAN_MODE_BALANCED);
-        Log.i(TAG,"Movella DOT SDK version ${XsensDotSdk.getSdkVersion()} initialized")
-        //XsensDotSdk.setDebugEnabled(true)
-        XsensDotSdk.setReconnectEnabled(true)
+        Log.i(TAG, "Movella DOT SDK version ${DotSdk.getSdkVersion()} initialized")
+        //DotSdk.setDebugEnabled(true)
+        DotSdk.setReconnectEnabled(true)
         btnScan!!.setOnClickListener { onScanBtnClicked() }
         btnConnect = findViewById<Button>(R.id.btnConnect)
         btnConnect!!.setOnClickListener { onConnectBtnClicked() }
@@ -61,66 +61,90 @@ class MainActivity : AppCompatActivity(), XsensDotDeviceCallback, XsensDotScanne
         findViewById<Button>(R.id.btnDisconnect)?.setOnClickListener { onDisconnectBtnClicked() }
     }
 
-    override fun onXsensDotConnectionChanged(address: String?, state: Int) {
-        if (state == XsensDotDevice.CONN_STATE_CONNECTED) {
+    override fun onDotConnectionChanged(address: String?, state: Int) {
+        if (state == DotDevice.CONN_STATE_CONNECTED) {
             var device = mDeviceList.find { it.address == address }
-            if(device!=null){
-                Log.i(TAG, "Connected to ${device.name} ${device.productId} ${device.address} firmware version ${device.firmwareVersion}")
+            if (device != null) {
+                Log.i(
+                    TAG,
+                    "Connected to ${device.name} ${device.tag} ${device.serialNumber.takeLast(4)}"
+                )
+            }
+        }
+        if (state == DotDevice.CONN_STATE_DISCONNECTED) {
+            var device = mDeviceList.find { it.address == address }
+            if (device != null) {
+                Log.i(
+                    TAG,
+                    "Disconnected from ${device.name} ${device.tag} ${device.serialNumber.takeLast(4)}"
+                )
             }
 
         }
     }
 
-    override fun onXsensDotServicesDiscovered(address: String?, state: Int) {
-        Log.i(TAG, "onXsensDotServicesDiscovered $address")
+    override fun onDotServicesDiscovered(address: String?, state: Int) {
+        Log.i(TAG, "onDotServicesDiscovered $address")
     }
 
-    override fun onXsensDotFirmwareVersionRead(address: String?, state: String?) {
-        Log.i(TAG, "onXsensDotFirmwareVersionRead $address")
+    override fun onDotFirmwareVersionRead(address: String?, state: String?) {
+        Log.i(TAG, "onDotFirmwareVersionRead $address")
     }
 
-    override fun onXsensDotTagChanged(address: String?, state: String?) {
-        Log.i(TAG, "onXsensDotTagChanged $address")
+    override fun onDotTagChanged(address: String?, state: String?) {
+        Log.i(TAG, "onDotTagChanged $address")
     }
 
-    override fun onXsensDotBatteryChanged(address: String?, state: Int, p2: Int) {
-        Log.i(TAG, "onXsensDotBatteryChanged $address")
+    override fun onDotBatteryChanged(address: String?, state: Int, p2: Int) {
+        Log.i(TAG, "onDotBatteryChanged $address")
     }
 
-    override fun onXsensDotDataChanged(address: String?, data: XsensDotData?) {
+    override fun onDotDataChanged(address: String?, data: DotData?) {
         mSensorOutlet?.push_chunk(data?.calFreeAcc)
     }
 
-    override fun onXsensDotInitDone(address: String?) {
+    override fun onDotInitDone(address: String?) {
         var device = mDeviceList.find { it.address == address }
-        if(device!=null){
-            Log.i(TAG, "Init done ${device.name} ${device.productId} ${device.address} firmware version ${device.firmwareVersion}")
+        if (device != null) {
+            Log.i(
+                TAG,
+                "Init done ${device.name} ${device.tag}"
+            )
         }
     }
 
-    override fun onXsensDotButtonClicked(address: String?, state: Long) {
-        Log.i(TAG, "onXsensDotButtonClicked $address $state")
+    override fun onDotButtonClicked(address: String?, state: Long) {
+        Log.i(TAG, "onDotButtonClicked $address $state")
         var xsDevice = mDeviceList.find { it.address == address }
-        if(xsDevice==null)
-            Log.e(TAG,"Button pressed for device $address but is not in device list!")
-        var info = LSL.StreamInfo(
-            "${xsDevice?.name} ${xsDevice?.address}",
-            "eeg",
-            3,
-            xsDevice!!.currentOutputRate.toDouble(),
-            LSL.ChannelFormat.float32,
-            UUID.randomUUID().toString()
+        if (xsDevice == null)
+            Log.e(TAG, "Button pressed for device $address but is not in device list!")
+        xsDevice?.identifyDevice()
+        Log.i(
+            TAG,
+            "Button pressed on ${xsDevice?.name}/${xsDevice?.tag}/${
+                xsDevice?.serialNumber?.takeLast(4)
+            }/${xsDevice?.address}"
         )
-        if (mSensorOutlet == null) {
-            mSensorOutlet = LSL.StreamOutlet(info)
-            xsDevice?.measurementMode=XsensDotPayload.PAYLOAD_TYPE_COMPLETE_EULER
-            xsDevice?.startMeasuring()
-        } else {
-            Log.e(TAG, "Stream already active!")
-        }
+        xsDevice?.tag = "Test"
+        xsDevice?.powerOffDevice()
+//        var info = LSL.StreamInfo(
+//            "${xsDevice?.name} ${xsDevice?.address}",
+//            "eeg",
+//            3,
+//            xsDevice!!.currentOutputRate.toDouble(),
+//            LSL.ChannelFormat.float32,
+//            UUID.randomUUID().toString()
+//        )
+//        if (mSensorOutlet == null) {
+//            mSensorOutlet = LSL.StreamOutlet(info)
+//            xsDevice?.measurementMode = DotPayload.PAYLOAD_TYPE_COMPLETE_EULER
+//            xsDevice?.startMeasuring()
+//        } else {
+//            Log.e(TAG, "Stream already active!")
+//        }
     }
 
-    override fun onXsensDotPowerSavingTriggered(address: String?) {
+    override fun onDotPowerSavingTriggered(address: String?) {
 
     }
 
@@ -128,15 +152,15 @@ class MainActivity : AppCompatActivity(), XsensDotDeviceCallback, XsensDotScanne
 
     }
 
-    override fun onXsensDotOutputRateUpdate(address: String?, state: Int) {
+    override fun onDotOutputRateUpdate(address: String?, state: Int) {
 
     }
 
-    override fun onXsensDotFilterProfileUpdate(address: String?, state: Int) {
+    override fun onDotFilterProfileUpdate(address: String?, state: Int) {
 
     }
 
-    override fun onXsensDotGetFilterProfileInfo(
+    override fun onDotGetFilterProfileInfo(
         address: String?,
         state: ArrayList<FilterProfileInfo>?
     ) {
@@ -147,16 +171,17 @@ class MainActivity : AppCompatActivity(), XsensDotDeviceCallback, XsensDotScanne
 
     }
 
-    override fun onXsensDotScanned(device: BluetoothDevice?, rssi: Int) {
+    override fun onDotScanned(device: BluetoothDevice?, rssi: Int) {
         if (device != null) {
-            var xsDevice = XsensDotDevice(applicationContext, device, this)
+            var xsDevice = DotDevice(applicationContext, device, this)
             if (mDeviceList.find { it.address == xsDevice.address } == null) {
                 mDeviceList.add(xsDevice)
+                xsDevice.connect()
             }
         } else {
             Log.i(TAG, "address is null!")
         }
-        val tvMyTextView = findViewById<TextView>(R.id.textView)
+        val tvMyTextView = findViewById<TextView>(R.id.DataTextView)
         tvMyTextView.text = "Found ${mDeviceList.size} devices"
     }
 
@@ -209,10 +234,10 @@ class MainActivity : AppCompatActivity(), XsensDotDeviceCallback, XsensDotScanne
             } else {
                 btnScan!!.text = "Start Scan"
                 mXsScanner.stopScan()
-                tvResultsList!!.text = "Found ${mDeviceList.size} devices"
+                tvResultsList!!.text = "Found ${mDeviceList.size} device
                 var res = "Found ${mDeviceList.size} devices:\n"
                 for (d in mDeviceList) {
-                    res += "${d.name} ${d.serialNumber}\n"
+                    res += "${d.name} ${d.tag} ${d.serialNumber.takeLast(4)}!\n"
                 }
                 tvResultsList!!.text = res
                 isScanning = false
